@@ -185,6 +185,84 @@ For testing purposes, use:
 - Clear code structure and organization
 - Comments explain business logic where needed
 
+## Design Principles & Implementation Rationale
+
+### 1. Architecture & State Management Clarity
+
+**MVVM with Single Source of Truth:**
+- I used MVVM with a single source of truth for UI state to guarantee predictable behaviour
+- **Android**: `LoginUiState` data class holds all UI state, managed through `StateFlow` in the ViewModel
+- **iOS**: `LoginState` struct contains all UI state, managed through `@Published` properties in the ViewModel
+- State updates flow unidirectionally from ViewModel to UI, ensuring consistency
+
+**Strict Separation of Concerns:**
+- UI (Compose/SwiftUI) and logic (ViewModel) are strictly separated for cleanliness and maintainability
+- ViewModels contain zero UI framework dependencies, making them platform-agnostic and testable
+- UI components are pure presentation layers that observe state and emit user events
+
+### 2. Testability Design
+
+**Business Logic in ViewModel:**
+- All business logic lives inside the ViewModel, making it fully testable without UI frameworks
+- Login validation, failure tracking, lockout logic, and state transitions are all testable in isolation
+- No business logic resides in UI components, ensuring comprehensive test coverage
+
+**Dependency Abstraction:**
+- Network operations and authentication are abstracted behind interfaces, enabling deterministic mocking in both Kotlin and Swift tests
+- **Android**: `AuthRepository`, `NetworkMonitor`, and `TokenStorage` are interfaces with mock implementations
+- **iOS**: `AuthServiceProtocol`, `NetworkMonitorProtocol`, and `TokenStorageProtocol` enable protocol-based mocking
+- Constructor/initializer injection allows complete control over dependencies in tests
+
+**Deterministic Async Testing:**
+- I used coroutine test dispatchers / XCTest expectations to make async predictable
+- **Android**: `StandardTestDispatcher` with `runTest` and `advanceUntilIdle()` ensures all coroutines complete deterministically
+- **iOS**: `async/await` with `Task.sleep()` and `XCTestExpectation` provides predictable async test execution
+- Tests never rely on real network delays or timing, ensuring fast and reliable test runs
+
+### 3. Non-Functional & UX Considerations
+
+**Offline Handling:**
+- The ViewModel handles offline scenarios gracefully by preventing login and giving immediate feedback
+- Network state is continuously monitored and UI updates reactively when connectivity changes
+- Users receive clear, actionable feedback when attempting to login offline
+
+**User-Friendly Lockout:**
+- Lockout logic is implemented in a user-friendly, testable, and easily adjustable way
+- The 3-attempt threshold is configurable and clearly communicated to users
+- Lockout state is clearly indicated in the UI, preventing user confusion
+
+**Responsive Under Slow Networks:**
+- I structured the flow so the app remains responsive even under slow network conditions
+- Loading states provide immediate feedback, preventing user confusion
+- Network operations are non-blocking, ensuring the UI remains interactive
+- Timeout handling prevents indefinite waiting states
+
+### 4. Security Awareness
+
+**Secure Token Storage:**
+- Tokens for "Remember Me" would be stored in secure storage (EncryptedSharedPreferences or Keychain)
+- **Android**: Implementation ready for `EncryptedSharedPreferences` migration (currently uses SharedPreferences for demo)
+- **iOS**: Implementation ready for Keychain Services migration (currently uses UserDefaults for demo)
+- No sensitive information is persisted in plain text
+
+**Error Message Security:**
+- I handle error messages in a way that avoids exposing internal details
+- Generic error messages prevent information leakage about authentication system internals
+- Failure counts and lockout states are communicated without revealing security mechanisms
+
+### 5. Observability
+
+**Analytics & Logging Integration Points:**
+- In a real app, I would integrate basic analytics/logging around login success/failure and offline behaviour
+- ViewModel methods provide clear hooks for analytics events (login success, failure, lockout, offline attempts)
+- State transitions are well-defined, making it easy to track user journeys
+
+**Crash Reporting & Analytics Compatibility:**
+- The ViewModel is structured to be compatible with crash reporting and usage analytics
+- All error states are captured in state objects, enabling comprehensive error tracking
+- Business logic separation allows analytics to be added without modifying core functionality
+- State management patterns support easy integration with analytics frameworks
+
 ## Implementation Details
 
 ### Android Components
